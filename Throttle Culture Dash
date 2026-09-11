@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Throttle Culture — Growth Tracker</title>
+<style>
+  :root {
+    --tc-orange: #E85A1B;
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --surface-2: #eeede8;
+    --text: #0b0b0a;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --border: rgba(11,11,10,0.12);
+    --border-strong: rgba(11,11,10,0.22);
+    --radius: 8px;
+    --green: #1baf7a;
+    --green-bg: #e1f5ee;
+    --green-text: #0f6e56;
+    --orange-bg: #fde8de;
+    --orange-text: #993c1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111110;
+      --surface: #1c1c1b;
+      --surface-2: #252523;
+      --text: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #6e6d6a;
+      --border: rgba(255,255,255,0.10);
+      --border-strong: rgba(255,255,255,0.20);
+      --green-bg: #073d31;
+      --green-text: #5dcaa5;
+      --orange-bg: #2d1206;
+      --orange-text: #f0997b;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+  .hdr { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 8px; }
+  .hdr-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--tc-orange); text-transform: uppercase; margin-bottom: 3px; }
+  .hdr-title { font-size: 22px; font-weight: 700; }
+  .hdr-meta { font-size: 11px; color: var(--text-muted); text-align: right; }
+
+  .tab-row { display: flex; border-bottom: 1px solid var(--border-strong); margin-bottom: 1.5rem; overflow-x: auto; }
+  .tab { font-size: 13px; padding: 8px 16px; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; font-family: inherit; transition: color .15s; }
+  .tab.active { color: var(--tc-orange); border-bottom-color: var(--tc-orange); font-weight: 600; }
+  .tab:hover:not(.active) { color: var(--text-secondary); }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin: 1.25rem 0 .75rem; }
+
+  /* Overview stat tiles */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; margin-bottom: 1.25rem; }
+  .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .stat-tile-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .stat-tile-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat-tile-note { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+  .stat-tile-note.pos { color: var(--green); }
+
+  /* Chart */
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 1.25rem; }
+  .chart-wrap { position: relative; width: 100%; height: 180px; }
+
+  /* Progress bars */
+  .progress-wrap { margin-bottom: .875rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .progress-pct { font-weight: 600; color: var(--tc-orange); }
+  .progress-bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--tc-orange); border-radius: 3px; transition: width .5s ease; }
+  .progress-note { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Platform cards */
+  .plat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .plat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .plat-name { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .plat-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .plat-row:last-of-type { border-bottom: none; }
+  .plat-row label { font-size: 11px; color: var(--text-muted); cursor: default; }
+  .plat-row input {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    border-radius: 5px; outline: none; text-align: right;
+    width: 96px; padding: 4px 7px; font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    transition: border-color .15s, background .15s;
+  }
+  .plat-row input:hover { border-color: var(--tc-orange); }
+  .plat-row input:focus { border-color: var(--tc-orange); background: var(--surface); color: var(--tc-orange); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; align-items: center; }
+  .btn { font-size: 13px; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); cursor: pointer; color: var(--text); font-family: inherit; font-weight: 500; transition: background .15s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn-primary { background: var(--tc-orange); color: #fff; border-color: var(--tc-orange); font-weight: 600; }
+  .btn-primary:hover { background: #c94c13; border-color: #c94c13; }
+  .save-note { font-size: 12px; color: var(--green); opacity: 0; transition: opacity .3s; font-weight: 500; }
+
+  /* Episodes */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
+  .kpi-num { font-size: 22px; font-weight: 700; }
+  .kpi-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+  .ep-log { display: grid; gap: 5px; margin-bottom: 1rem; }
+  .ep-row { display: grid; grid-template-columns: 52px 1fr 64px 64px; gap: 8px; align-items: center; padding: 9px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; }
+  .ep-num { font-weight: 700; font-size: 11px; color: var(--tc-orange); }
+  .ep-brand { font-size: 9px; color: var(--text-muted); }
+  .ep-date { color: var(--text-muted); font-size: 11px; }
+  .ep-plays { font-weight: 600; text-align: right; }
+  .add-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .add-row input, .add-row select {
+    font-size: 13px; padding: 8px 10px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius); background: var(--surface); color: var(--text);
+    font-family: inherit; outline: none;
+  }
+  .add-row input:focus, .add-row select:focus { border-color: var(--tc-orange); }
+  .empty { text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 13px; border: 1px dashed var(--border-strong); border-radius: var(--radius); }
+
+  /* Milestones */
+  .milestone-list { display: grid; gap: 6px; margin-bottom: 1.25rem; }
+  .milestone { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong); }
+  .milestone.done { border-left-color: var(--green); }
+  .milestone.next { border-left-color: var(--tc-orange); }
+  .milestone-title { font-size: 13px; font-weight: 600; }
+  .milestone-sub { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+  .badge { font-size: 11px; padding: 2px 9px; border-radius: 4px; white-space: nowrap; font-weight: 500; }
+  .badge-done { background: var(--green-bg); color: var(--green-text); }
+  .badge-next { background: var(--orange-bg); color: var(--orange-text); }
+  .badge-pending { color: var(--text-muted); font-size: 11px; }
+
+  /* Strategy */
+  .strategy-list { display: grid; gap: 8px; margin-bottom: 1rem; }
+  .strategy-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .strategy-head { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .strategy-card p { font-size: 12px; color: var(--text-secondary); line-height: 1.65; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hdr">
+    <div>
+      <div class="hdr-eyebrow">Throttle Culture</div>
+      <div class="hdr-title">Growth &amp; Monetization Tracker</div>
+    </div>
+    <div class="hdr-meta" id="last-saved"></div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" onclick="showTab('overview')">Overview</button>
+    <button class="tab" onclick="showTab('platforms')">Platforms</button>
+    <button class="tab" onclick="showTab('episodes')">Episodes</button>
+    <button class="tab" onclick="showTab('strategy')">Growth strategy</button>
+  </div>
+
+  <!-- OVERVIEW (read-only display, populated from Platforms tab) -->
+  <div id="tab-overview" class="section active">
+    <div class="stat-grid">
+      <div class="stat-tile">
+        <div class="stat-tile-label">Total audience</div>
+        <div class="stat-tile-val" id="d-total">—</div>
+        <div class="stat-tile-note">all platforms</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">Threads</div>
+        <div class="stat-tile-val" id="d-threads">0</div>
+        <div class="stat-tile-note pos">primary engine</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">Spotify</div>
+        <div class="stat-tile-val" id="d-spotify">0</div>
+        <div class="stat-tile-note">monthly listeners</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">Apple Podcasts</div>
+        <div class="stat-tile-val" id="d-apple">0</div>
+        <div class="stat-tile-note">listeners / ep</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">YouTube</div>
+        <div class="stat-tile-val" id="d-yt">0</div>
+        <div class="stat-tile-note">subscribers</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">Instagram</div>
+        <div class="stat-tile-val" id="d-ig">0</div>
+        <div class="stat-tile-note">followers</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-label">TikTok</div>
+        <div class="stat-tile-val" id="d-tiktok">0</div>
+        <div class="stat-tile-note">followers</div>
+      </div>
+    </div>
+
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">
+      Enter your numbers on the <strong style="color:var(--text-secondary)">Platforms</strong> tab — this overview updates automatically.
+    </p>
+
+    <div class="chart-box">
+      <div class="chart-wrap">
+        <canvas id="growthCanvas" role="img" aria-label="Bar chart of audience size per platform">Platform audience sizes.</canvas>
+      </div>
+    </div>
+
+    <div class="section-label">Monetization progress</div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Spotify eligibility</span><span class="progress-pct" id="spotify-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="spotify-prog" style="width:0%"></div></div>
+      <div class="progress-note">100 followers + 500 streams in 12 months</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Apple Podcasts milestone</span><span class="progress-pct" id="apple-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="apple-prog" style="width:0%"></div></div>
+      <div class="progress-note">1,000 unique listeners/ep unlocks meaningful sponsorship data</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>YouTube monetization</span><span class="progress-pct" id="yt-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="yt-prog" style="width:0%"></div></div>
+      <div class="progress-note">1,000 subs + 4,000 watch hours</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>TikTok Creator Program</span><span class="progress-pct" id="tiktok-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="tiktok-prog" style="width:0%"></div></div>
+      <div class="progress-note">10,000 followers + 100,000 views in 30 days</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Sponsorship readiness</span><span class="progress-pct" id="sponsor-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="sponsor-prog" style="width:0%"></div></div>
+      <div class="progress-note">Target: 2,500 combined audience + consistent weekly output</div>
+    </div>
+  </div>
+
+  <!-- PLATFORMS (all editable inputs live here) -->
+  <div id="tab-platforms" class="section">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Click any field and type your current numbers. Hit <strong style="color:var(--text-secondary)">Save snapshot</strong> when done.</p>
+    <div class="plat-grid">
+
+      <div class="plat-card">
+        <div class="plat-name" style="color:#1DB954">Spotify</div>
+        <div class="plat-row"><label>Followers</label><input type="number" id="sp-followers" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Monthly listeners</label><input type="number" id="sp-monthly" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Total streams</label><input type="number" id="sp-streams" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg plays / ep</label><input type="number" id="sp-avg" value="0" min="0" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name" style="color:#fc3c44">Apple Podcasts</div>
+        <div class="plat-row"><label>Unique listeners / ep</label><input type="number" id="ap-listeners" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Total plays</label><input type="number" id="ap-plays" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Followers</label><input type="number" id="ap-followers" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg completion %</label><input type="number" id="ap-completion" value="0" min="0" max="100" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name" style="color:#FF0000">YouTube</div>
+        <div class="plat-row"><label>Subscribers</label><input type="number" id="yt-subs" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Watch hours (YTD)</label><input type="number" id="yt-hours" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Views (last 28d)</label><input type="number" id="yt-views" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg view duration</label><input type="text" id="yt-dur" value="—" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name">Threads</div>
+        <div class="plat-row"><label>Followers</label><input type="number" id="th-followers" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg post likes</label><input type="number" id="th-likes" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg reposts</label><input type="number" id="th-reposts" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Top post reach</label><input type="number" id="th-top" value="0" min="0" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name" style="color:#E1306C">Instagram</div>
+        <div class="plat-row"><label>Followers</label><input type="number" id="ig-followers" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg reel views</label><input type="number" id="ig-reels" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Story views / ep</label><input type="number" id="ig-stories" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Profile visits / wk</label><input type="number" id="ig-visits" value="0" min="0" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name">TikTok</div>
+        <div class="plat-row"><label>Followers</label><input type="number" id="tt-followers" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Views (last 7d)</label><input type="number" id="tt-views" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Avg video views</label><input type="number" id="tt-avg" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Likes (last 30d)</label><input type="number" id="tt-likes" value="0" min="0" oninput="recalc()"></div>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-name" style="color:#FF6719">Substack</div>
+        <div class="plat-row"><label>Subscribers</label><input type="number" id="sub-subs" value="0" min="0" oninput="recalc()"></div>
+        <div class="plat-row"><label>Open rate %</label><input type="number" id="sub-open" value="0" min="0" max="100" oninput="recalc()"></div>
+        <div class="plat-row"><label>Paid subscribers</label><input type="number" id="sub-paid" value="0" min="0" oninput="recalc()"></div>
+      </div>
+
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveData()">Save snapshot</button>
+      <span class="save-note" id="save-note">Saved</span>
+    </div>
+  </div>
+
+  <!-- EPISODES -->
+  <div id="tab-episodes" class="section">
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-num" id="ep-count">0</div><div class="kpi-label">total episodes</div></div>
+      <div class="kpi-card"><div class="kpi-num" id="ep-this-month">0</div><div class="kpi-label">this month</div></div>
+      <div class="kpi-card"><div class="kpi-num" id="ep-best">—</div><div class="kpi-label">best plays</div></div>
+      <div class="kpi-card"><div class="kpi-num">1/wk</div><div class="kpi-label">target cadence</div></div>
+    </div>
+    <div class="section-label">Episode log</div>
+    <div class="ep-log" id="ep-log">
+      <div class="empty">No episodes logged yet. Add your first one below.</div>
+    </div>
+    <div class="add-row">
+      <input type="text" id="new-ep-title" placeholder="Episode title" style="flex:1;min-width:160px">
+      <select id="new-ep-brand">
+        <option>Throttle Culture</option>
+        <option>Tercer Pedal</option>
+      </select>
+      <input type="number" id="new-ep-plays" placeholder="Plays" style="width:88px" min="0">
+      <button class="btn btn-primary" onclick="addEpisode()">Add episode</button>
+    </div>
+  </div>
+
+  <!-- STRATEGY -->
+  <div id="tab-strategy" class="section">
+    <div class="section-label">Monetization milestones</div>
+    <div class="milestone-list">
+      <div class="milestone done">
+        <div><div class="milestone-title">Studio ready</div><div class="milestone-sub">Logitech mic + garage setup complete</div></div>
+        <span class="badge badge-done">Done</span>
+      </div>
+      <div class="milestone next">
+        <div><div class="milestone-title">First 3 interviews recorded</div><div class="milestone-sub">Guests lined up — time to record</div></div>
+        <span class="badge badge-next">Now</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">Spotify: 100 followers + 500 streams</div><div class="milestone-sub">Unlocks Spotify monetization eligibility</div></div>
+        <span class="badge badge-pending">Tier 1</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">Apple Podcasts: 1,000 unique listeners / ep</div><div class="milestone-sub">Meaningful sponsorship benchmark</div></div>
+        <span class="badge badge-pending">Tier 1</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">TikTok: 10K followers + 100K views / 30d</div><div class="milestone-sub">Creator Program eligibility</div></div>
+        <span class="badge badge-pending">Tier 2</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">First brand sponsor pitch</div><div class="milestone-sub">~500 combined audience — automotive or coffee brands</div></div>
+        <span class="badge badge-pending">Tier 2</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">YouTube: 1,000 subs + 4K watch hours</div><div class="milestone-sub">YPP ad revenue eligibility</div></div>
+        <span class="badge badge-pending">Tier 3</span>
+      </div>
+      <div class="milestone">
+        <div><div class="milestone-title">Paid product / Substack tier</div><div class="milestone-sub">Octane and Espresso tickets or paid newsletter</div></div>
+        <span class="badge badge-pending">Tier 4</span>
+      </div>
+    </div>
+
+    <div class="section-label">Strategic priorities</div>
+    <div class="strategy-list">
+      <div class="strategy-card">
+        <div class="strategy-head"><div class="dot" style="background:#E85A1B"></div>Threads first, everything else repurposed</div>
+        <p>Threads is your best engagement-to-follower ratio. Every episode generates three posts: a hook before release, a clip moment after, and a conversation prompt 48 hours later. Use those posts to actively drive Spotify and Apple follows.</p>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-head"><div class="dot" style="background:#2a78d6"></div>TikTok is your fastest path to new ears</div>
+        <p>Short garage clips — 30 to 60 seconds of the best moment from each guest interview — have the highest discovery ceiling. Post within 24 hours of recording. The goal isn't TikTok followers; it's Spotify and Apple listeners who find you there.</p>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-head"><div class="dot" style="background:#1baf7a"></div>Apple Podcasts is quietly your biggest audience</div>
+        <p>Apple drives roughly 25–35% of podcast consumption and skews older, which matches your TC listener profile. Make sure your show art and description are fully optimized there — it costs nothing and moves the needle on the 1K listener milestone.</p>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-head"><div class="dot" style="background:#eda100"></div>First sponsor: 90 days out, pitch direct</div>
+        <p>At ~500 combined audience with consistent weekly output, pitch specialty coffee, car care brands (Griot's, Chemical Guys), or tristate performance shops directly. No middleman needed at this stage — a one-page media kit is enough.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var episodes = [];
+var growthChart;
+var STORAGE_KEY = 'tc-dashboard-v4';
+
+function showTab(id) {
+  var tabs = ['overview','platforms','episodes','strategy'];
+  document.querySelectorAll('.tab').forEach(function(t, i) {
+    t.classList.toggle('active', tabs[i] === id);
+  });
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'overview') setTimeout(renderChart, 60);
+}
+
+function g(id) { return document.getElementById(id); }
+function n(id) { return parseInt(g(id) && g(id).value) || 0; }
+
+function recalc() {
+  var th  = n('th-followers');
+  var sp  = n('sp-monthly');
+  var ap  = n('ap-listeners');
+  var yt  = n('yt-subs');
+  var ig  = n('ig-followers');
+  var tt  = n('tt-followers');
+  var sub = n('sub-subs');
+  var total = th + sp + ap + yt + ig + tt + sub;
+
+  g('d-threads').textContent  = th.toLocaleString();
+  g('d-spotify').textContent  = sp.toLocaleString();
+  g('d-apple').textContent    = ap.toLocaleString();
+  g('d-yt').textContent       = yt.toLocaleString();
+  g('d-ig').textContent       = ig.toLocaleString();
+  g('d-tiktok').textContent   = tt.toLocaleString();
+  g('d-total').textContent    = total > 0 ? total.toLocaleString() : '—';
+
+  var spF = n('sp-followers'), spS = n('sp-streams');
+  var spPct = Math.min(100, Math.round((Math.min(spF/100,1)*50) + (Math.min(spS/500,1)*50)));
+  g('spotify-pct').textContent = spPct + '%'; g('spotify-prog').style.width = spPct + '%';
+
+  var apPct = Math.min(100, Math.round((ap / 1000) * 100));
+  g('apple-pct').textContent = apPct + '%'; g('apple-prog').style.width = apPct + '%';
+
+  var ytH = n('yt-hours');
+  var ytPct = Math.min(100, Math.round((Math.min(yt/1000,1)*50) + (Math.min(ytH/4000,1)*50)));
+  g('yt-pct').textContent = ytPct + '%'; g('yt-prog').style.width = ytPct + '%';
+
+  var ttV = n('tt-views');
+  var ttPct = Math.min(100, Math.round((Math.min(tt/10000,1)*50) + (Math.min(ttV/100000,1)*50)));
+  g('tiktok-pct').textContent = ttPct + '%'; g('tiktok-prog').style.width = ttPct + '%';
+
+  var sPct = Math.min(100, Math.round((total / 2500) * 100));
+  g('sponsor-pct').textContent = sPct + '%'; g('sponsor-prog').style.width = sPct + '%';
+
+  renderChart();
+}
+
+function renderChart() {
+  var canvas = g('growthCanvas'); if (!canvas) return;
+  if (growthChart) { growthChart.destroy(); growthChart = null; }
+  var isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  growthChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: ['Threads','Spotify','Apple','YouTube','Instagram','TikTok','Substack'],
+      datasets: [{
+        label: 'Audience',
+        data: [n('th-followers'),n('sp-monthly'),n('ap-listeners'),n('yt-subs'),n('ig-followers'),n('tt-followers'),n('sub-subs')],
+        backgroundColor: ['#111110','#1DB954','#fc3c44','#FF0000','#E1306C','#69C9D0','#FF6719'],
+        borderRadius: 4,
+        borderSkipped: 'start'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#898781', font: { size: 10 } }, grid: { display: false }, border: { display: false } },
+        y: { ticks: { color: '#898781', font: { size: 10 } }, grid: { color: isDark ? '#2c2c2a' : '#e5e4de' }, border: { display: false } }
+      }
+    }
+  });
+}
+
+function addEpisode() {
+  var titleEl = g('new-ep-title');
+  var title = titleEl.value.trim();
+  if (!title) { titleEl.focus(); titleEl.style.borderColor = '#E85A1B'; return; }
+  titleEl.style.borderColor = '';
+  var brand = g('new-ep-brand').value;
+  var plays = parseInt(g('new-ep-plays').value) || 0;
+  episodes.push({
+    title: title, brand: brand, plays: plays,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  });
+  titleEl.value = ''; g('new-ep-plays').value = '';
+  renderEpisodes();
+  saveData();
+}
+
+function renderEpisodes() {
+  var log = g('ep-log'); log.innerHTML = '';
+  if (episodes.length === 0) {
+    log.innerHTML = '<div class="empty">No episodes logged yet. Add your first one below.</div>';
+  } else {
+    episodes.slice().reverse().forEach(function(ep, i) {
+      var num = episodes.length - i;
+      var row = document.createElement('div'); row.className = 'ep-row';
+      var bc = ep.brand === 'Tercer Pedal' ? '#eda100' : '#E85A1B';
+      row.innerHTML =
+        '<div class="ep-num" style="color:' + bc + '">EP' + num + '<div class="ep-brand">' + (ep.brand === 'Throttle Culture' ? 'TC' : 'TP') + '</div></div>' +
+        '<div>' + ep.title + '</div>' +
+        '<div class="ep-date">' + ep.date + '</div>' +
+        '<div class="ep-plays">' + ep.plays.toLocaleString() + '</div>';
+      log.appendChild(row);
+    });
+  }
+  g('ep-count').textContent = episodes.length;
+  var now = new Date();
+  var thisMonth = episodes.filter(function(e) {
+    var d = new Date(e.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  g('ep-this-month').textContent = thisMonth;
+  var best = episodes.reduce(function(m, e) { return Math.max(m, e.plays); }, 0);
+  g('ep-best').textContent = best > 0 ? best.toLocaleString() : '—';
+}
+
+function saveData() {
+  try {
+    var data = {
+      sp: { followers: n('sp-followers'), monthly: n('sp-monthly'), streams: n('sp-streams'), avg: n('sp-avg') },
+      ap: { listeners: n('ap-listeners'), plays: n('ap-plays'), followers: n('ap-followers'), completion: n('ap-completion') },
+      yt: { subs: n('yt-subs'), hours: n('yt-hours'), views: n('yt-views'), dur: g('yt-dur').value },
+      th: { followers: n('th-followers'), likes: n('th-likes'), reposts: n('th-reposts'), top: n('th-top') },
+      ig: { followers: n('ig-followers'), reels: n('ig-reels'), stories: n('ig-stories'), visits: n('ig-visits') },
+      tt: { followers: n('tt-followers'), views: n('tt-views'), avg: n('tt-avg'), likes: n('tt-likes') },
+      sub: { subs: n('sub-subs'), open: n('sub-open'), paid: n('sub-paid') },
+      episodes: episodes,
+      saved_at: new Date().toISOString()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    var note = g('save-note');
+    note.style.opacity = '1';
+    setTimeout(function() { note.style.opacity = '0'; }, 2000);
+    g('last-saved').textContent = 'Last saved ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+  }
+}
+
+function loadData() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    function sv(id, val) { var el = g(id); if (el && val !== undefined && val !== null) el.value = val; }
+    if (d.sp)  { sv('sp-followers',d.sp.followers); sv('sp-monthly',d.sp.monthly); sv('sp-streams',d.sp.streams); sv('sp-avg',d.sp.avg); }
+    if (d.ap)  { sv('ap-listeners',d.ap.listeners); sv('ap-plays',d.ap.plays); sv('ap-followers',d.ap.followers); sv('ap-completion',d.ap.completion); }
+    if (d.yt)  { sv('yt-subs',d.yt.subs); sv('yt-hours',d.yt.hours); sv('yt-views',d.yt.views); sv('yt-dur',d.yt.dur); }
+    if (d.th)  { sv('th-followers',d.th.followers); sv('th-likes',d.th.likes); sv('th-reposts',d.th.reposts); sv('th-top',d.th.top); }
+    if (d.ig)  { sv('ig-followers',d.ig.followers); sv('ig-reels',d.ig.reels); sv('ig-stories',d.ig.stories); sv('ig-visits',d.ig.visits); }
+    if (d.tt)  { sv('tt-followers',d.tt.followers); sv('tt-views',d.tt.views); sv('tt-avg',d.tt.avg); sv('tt-likes',d.tt.likes); }
+    if (d.sub) { sv('sub-subs',d.sub.subs); sv('sub-open',d.sub.open); sv('sub-paid',d.sub.paid); }
+    if (d.episodes) { episodes = d.episodes; renderEpisodes(); }
+    if (d.saved_at) g('last-saved').textContent = 'Last saved ' + new Date(d.saved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    recalc();
+  } catch(e) {
+    console.error('Load failed:', e);
+  }
+}
+
+window.addEventListener('load', function() {
+  loadData();
+  renderChart();
+});
+</script>
+</body>
+</html>
